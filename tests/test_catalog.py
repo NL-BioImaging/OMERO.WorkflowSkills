@@ -147,3 +147,53 @@ def test_refresh_removes_cached_packages(config_file, tmp_path):
     assert list((tmp_path / "cache" / "workflows").glob("*.json"))
     catalog.refresh()
     assert not list((tmp_path / "cache" / "workflows").glob("*.json"))
+
+
+def test_builds_application_catalog_and_loads_package(tmp_path):
+    config = tmp_path / "slurm-config.ini"
+    config.write_text(
+        """
+[APPLICATIONS]
+omero-zarr-viewer_repo = https://github.com/example/viewer/tree/v0.3.0
+""".strip(),
+        encoding="utf-8",
+    )
+    catalog = WorkflowSkillCatalog(
+        config_path=config,
+        cache_dir=tmp_path / "cache",
+        github=FakeGitHub(),
+    )
+    result = catalog.get_catalog("omero-analysis-chat")
+    assert result.workflows == ()
+    assert len(result.applications) == 1
+    application = result.applications[0]
+    assert application.source.source_kind == "application"
+    assert application.source.source_key == "omero-zarr-viewer"
+    assert application.skills[0].source_kind == "application"
+    package = catalog.get_package(
+        "omero-zarr-viewer", "analyze-example-measurements"
+    )
+    assert package.source.configured_ref == "v0.3.0"
+
+
+def test_duplicate_names_across_workflow_and_application_are_hidden(tmp_path):
+    config = tmp_path / "slurm-config.ini"
+    config.write_text(
+        """
+[WORKFLOWS]
+example_repo = https://github.com/example/workflow/tree/v1.2.3
+
+[APPLICATIONS]
+viewer_repo = https://github.com/example/viewer/tree/v0.3.0
+""".strip(),
+        encoding="utf-8",
+    )
+    catalog = WorkflowSkillCatalog(
+        config_path=config,
+        cache_dir=tmp_path / "cache",
+        github=FakeGitHub(),
+    )
+    result = catalog.get_catalog("omero-analysis-chat")
+    assert result.workflows[0].skills == ()
+    assert result.applications[0].skills == ()
+    assert any(item.code == "duplicate-skill-name" for item in result.diagnostics)

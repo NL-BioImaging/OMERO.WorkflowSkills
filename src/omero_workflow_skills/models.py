@@ -29,6 +29,8 @@ class WorkflowSource:
     descriptor_path: str = ""
     ref_kind: str = "commit"
     ui_modes: tuple[str, ...] = ()
+    source_kind: Literal["workflow", "application"] = "workflow"
+    source_key: str = ""
 
 
 @dataclass(frozen=True)
@@ -51,6 +53,8 @@ class WorkflowSkillSummary:
     sha256: str
     package_url: str
     match: SkillMatchRules = field(default_factory=SkillMatchRules)
+    source_kind: Literal["workflow", "application"] = "workflow"
+    source_key: str = ""
 
 
 @dataclass(frozen=True)
@@ -88,8 +92,8 @@ class WorkflowSkillCatalogV1:
     consumer: str
     config_hash: str
     workflows: tuple[WorkflowCatalogEntry, ...]
+    applications: tuple[WorkflowCatalogEntry, ...] = ()
     diagnostics: tuple[CatalogDiagnostic, ...] = ()
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
-

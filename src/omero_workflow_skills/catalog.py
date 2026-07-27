@@ -7,7 +7,7 @@ from collections.abc import Callable
 from dataclasses import asdict
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from .cache import CatalogCache
 from .config import ConfiguredWorkflow, load_configuration
@@ -55,35 +55,53 @@ class WorkflowSkillCatalog:
     def get_catalog(self, consumer: str) -> WorkflowSkillCatalogV1:
         consumer = _consumer(consumer)
         configuration = load_configuration(self.config_path)
-        entries: list[WorkflowCatalogEntry] = []
+        workflow_entries: list[WorkflowCatalogEntry] = []
+        application_entries: list[WorkflowCatalogEntry] = []
         diagnostics: list[CatalogDiagnostic] = []
         packages: dict[tuple[str, str], WorkflowSkillPackage] = {}
         with self.cache.locked():
             for workflow in configuration.workflows:
-                entry, found_packages, found_diagnostics = self._workflow(workflow, consumer)
-                entries.append(entry)
+                entry, found_packages, found_diagnostics = self._source(
+                    workflow, consumer, source_kind="workflow"
+                )
+                workflow_entries.append(entry)
+                packages.update(found_packages)
+                diagnostics.extend(found_diagnostics)
+            for application in configuration.applications:
+                entry, found_packages, found_diagnostics = self._source(
+                    application, consumer, source_kind="application"
+                )
+                application_entries.append(entry)
                 packages.update(found_packages)
                 diagnostics.extend(found_diagnostics)
 
         duplicates: dict[str, list[str]] = {}
-        for entry in entries:
+        for entry in (*workflow_entries, *application_entries):
             for skill in entry.skills:
-                duplicates.setdefault(skill.name, []).append(entry.source.workflow_key)
+                duplicates.setdefault(skill.name, []).append(_source_key(entry.source))
         conflicts = {name: keys for name, keys in duplicates.items() if len(keys) > 1}
         if conflicts:
-            filtered_entries: list[WorkflowCatalogEntry] = []
-            for entry in entries:
-                skills = tuple(skill for skill in entry.skills if skill.name not in conflicts)
-                filtered_entries.append(
-                    WorkflowCatalogEntry(
-                        source=entry.source,
-                        status=entry.status,
-                        checked_at=entry.checked_at,
-                        skills=skills,
-                        error=entry.error,
+            def without_conflicts(
+                entries: list[WorkflowCatalogEntry],
+            ) -> list[WorkflowCatalogEntry]:
+                filtered: list[WorkflowCatalogEntry] = []
+                for entry in entries:
+                    skills = tuple(
+                        skill for skill in entry.skills if skill.name not in conflicts
                     )
-                )
-            entries = filtered_entries
+                    filtered.append(
+                        WorkflowCatalogEntry(
+                            source=entry.source,
+                            status=entry.status,
+                            checked_at=entry.checked_at,
+                            skills=skills,
+                            error=entry.error,
+                        )
+                    )
+                return filtered
+
+            workflow_entries = without_conflicts(workflow_entries)
+            application_entries = without_conflicts(application_entries)
             for name, keys in sorted(conflicts.items()):
                 diagnostics.append(
                     CatalogDiagnostic(
@@ -102,7 +120,8 @@ class WorkflowSkillCatalog:
             generated_at=_now(),
             consumer=consumer,
             config_hash=configuration.content_hash,
-            workflows=tuple(entries),
+            workflows=tuple(workflow_entries),
+            applications=tuple(application_entries),
             diagnostics=tuple(diagnostics),
         )
         self._last_catalog = catalog
@@ -121,8 +140,8 @@ class WorkflowSkillCatalog:
         else:
             catalog = self._last_catalog
         allowed = {
-            (entry.source.workflow_key, skill.name)
-            for entry in catalog.workflows
+            (_source_key(entry.source), skill.name)
+            for entry in (*catalog.workflows, *catalog.applications)
             for skill in entry.skills
         }
         key = (workflow_key, skill_name)
@@ -146,16 +165,21 @@ class WorkflowSkillCatalog:
         configuration = load_configuration(self.config_path)
         return {
             "schema": CATALOG_SCHEMA,
-            "version": "0.1.0",
+            "version": "0.2.0",
             "config_paths": list(configuration.paths),
             "config_hash": configuration.content_hash,
             "workflow_count": len(configuration.workflows),
+            "application_count": len(configuration.applications),
             "cache_dir": str(self.cache.root),
             "last_catalog": self._last_catalog.to_dict() if self._last_catalog else None,
         }
 
-    def _workflow(
-        self, workflow: ConfiguredWorkflow, consumer: str
+    def _source(
+        self,
+        workflow: ConfiguredWorkflow,
+        consumer: str,
+        *,
+        source_kind: Literal["workflow", "application"],
     ) -> tuple[
         WorkflowCatalogEntry,
         dict[tuple[str, str], WorkflowSkillPackage],
@@ -163,6 +187,7 @@ class WorkflowSkillCatalog:
     ]:
         source_signature = "\0".join(
             (
+                source_kind,
                 workflow.key,
                 workflow.repository_url,
                 workflow.skills_path,
@@ -194,12 +219,16 @@ class WorkflowSkillCatalog:
             )
         try:
             resolved = self.github.resolve_repository(workflow.repository_url)
-            packages, diagnostics = self._download(workflow, resolved)
+            packages, diagnostics = self._download(
+                workflow, resolved, source_kind=source_kind
+            )
             checked_at = _now()
             payload = {
                 "source_signature": source_signature,
                 "checked_at": checked_at,
-                "source": asdict(_workflow_source(workflow, resolved)),
+                "source": asdict(
+                    _workflow_source(workflow, resolved, source_kind=source_kind)
+                ),
                 "packages": [_package_dict(package) for package in packages.values()],
                 "diagnostics": [asdict(item) for item in diagnostics],
             }
@@ -213,7 +242,9 @@ class WorkflowSkillCatalog:
             }
             return (
                 WorkflowCatalogEntry(
-                    source=_workflow_source(workflow, resolved),
+                    source=_workflow_source(
+                        workflow, resolved, source_kind=source_kind
+                    ),
                     status=status,
                     checked_at=checked_at,
                     skills=tuple(package.skill for package in filtered.values()),
@@ -245,14 +276,16 @@ class WorkflowSkillCatalog:
                     filtered,
                     [diagnostic],
                 )
-            return self._error_entry(workflow, exc)
+            return self._error_entry(workflow, exc, source_kind=source_kind)
         except (CatalogError, OSError) as exc:
-            return self._error_entry(workflow, exc)
+            return self._error_entry(workflow, exc, source_kind=source_kind)
 
     def _error_entry(
         self,
         workflow: ConfiguredWorkflow,
         exc: Exception,
+        *,
+        source_kind: Literal["workflow", "application"],
     ) -> tuple[
         WorkflowCatalogEntry,
         dict[tuple[str, str], WorkflowSkillPackage],
@@ -267,6 +300,8 @@ class WorkflowSkillCatalog:
             resolved_commit="",
             skills_path=workflow.skills_path,
             ui_modes=workflow.ui_modes,
+            source_kind=source_kind,
+            source_key=workflow.key,
         )
         return (
             WorkflowCatalogEntry(
@@ -279,7 +314,7 @@ class WorkflowSkillCatalog:
             [
                 CatalogDiagnostic(
                     level="error",
-                    code="workflow-fetch-failed",
+                    code=f"{source_kind}-fetch-failed",
                     message=str(exc),
                     workflow_key=workflow.key,
                 )
@@ -287,7 +322,11 @@ class WorkflowSkillCatalog:
         )
 
     def _download(
-        self, workflow: ConfiguredWorkflow, resolved: ResolvedRepository
+        self,
+        workflow: ConfiguredWorkflow,
+        resolved: ResolvedRepository,
+        *,
+        source_kind: Literal["workflow", "application"],
     ) -> tuple[
         dict[tuple[str, str], WorkflowSkillPackage],
         list[CatalogDiagnostic],
@@ -303,7 +342,7 @@ class WorkflowSkillCatalog:
             raise ValidationError(
                 f"{workflow.key}: more than {MAX_SKILLS_PER_WORKFLOW} skills"
             )
-        source = _workflow_source(workflow, resolved)
+        source = _workflow_source(workflow, resolved, source_kind=source_kind)
         packages: dict[tuple[str, str], WorkflowSkillPackage] = {}
         diagnostics: list[CatalogDiagnostic] = []
         for directory in skill_directories:
@@ -316,6 +355,7 @@ class WorkflowSkillCatalog:
                     name,
                     files,
                     self.package_url(workflow.key, name),
+                    source_kind=source_kind,
                 )
                 packages[(workflow.key, name)] = WorkflowSkillPackage(
                     source=source,
@@ -376,7 +416,10 @@ def _consumer(value: str) -> str:
 
 
 def _workflow_source(
-    workflow: ConfiguredWorkflow, resolved: ResolvedRepository
+    workflow: ConfiguredWorkflow,
+    resolved: ResolvedRepository,
+    *,
+    source_kind: Literal["workflow", "application"],
 ) -> WorkflowSource:
     location = resolved.location
     return WorkflowSource(
@@ -390,7 +433,13 @@ def _workflow_source(
         descriptor_path=location.descriptor_path,
         ref_kind=resolved.ref_kind,
         ui_modes=workflow.ui_modes,
+        source_kind=source_kind,
+        source_key=workflow.key,
     )
+
+
+def _source_key(source: WorkflowSource) -> str:
+    return source.source_key or source.workflow_key
 
 
 def _now() -> str:
@@ -432,7 +481,7 @@ def _cached_packages(
             )
             files = tuple(SkillFile(**item) for item in raw["files"])
             package = WorkflowSkillPackage(source=source, skill=skill, files=files)
-            packages[(source.workflow_key, skill.name)] = package
+            packages[(_source_key(source), skill.name)] = package
     except (KeyError, TypeError, ValueError):
         return {}
     return packages

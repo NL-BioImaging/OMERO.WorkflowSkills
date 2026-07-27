@@ -1,10 +1,9 @@
 # OMERO.WorkflowSkills
 
 `omero-workflow-skills` is a small, framework-neutral catalog for Agent Skills
-stored with BIOMERO workflow repositories. It reads BIOMERO's configured
-workflow repository URLs, resolves the exact GitHub revision, validates the
-repository's `_agents/skills` directory, and exposes typed catalog data to
-OMERO plugins.
+stored with BIOMERO workflow and configured OMERO application repositories. It
+resolves exact GitHub revisions, validates each repository's `_agents/skills`
+directory, and exposes typed catalog data to OMERO plugins.
 
 It is designed as a shared dependency of
 [OMERO.JupyterLite](https://github.com/NL-BioImaging/OMERO.JupyterLite) and
@@ -24,6 +23,18 @@ package = catalog.get_package(
     "analyze-cisegmentation-measurements",
 )
 ```
+
+Application skills are configured additively in the same configuration file:
+
+```ini
+[APPLICATIONS]
+omero-zarr-viewer_repo = https://github.com/NL-BioImaging/BIOMERO.ZarrViewer/tree/v0.3.0
+omero-zarr-viewer_skills_path = _agents/skills
+```
+
+They appear in `catalog.applications`; existing `catalog.workflows` and
+`get_package()` behavior remains unchanged. Sources and summaries expose
+`source_kind` and `source_key` so consumers can distinguish the two.
 
 For stateless adapters, `get_package(..., consumer="omero-analysis-chat")` is
 also supported and performs the consumer-filtered catalog lookup first.

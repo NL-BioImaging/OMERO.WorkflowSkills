@@ -31,6 +31,7 @@ class WorkflowConfiguration:
     paths: tuple[str, ...]
     content_hash: str
     workflows: tuple[ConfiguredWorkflow, ...]
+    applications: tuple[ConfiguredWorkflow, ...] = ()
 
 
 def _list_setting(parser: configparser.ConfigParser, key: str) -> set[str]:
@@ -96,6 +97,28 @@ def load_configuration(
             )
         )
 
+    applications: list[ConfiguredWorkflow] = []
+    application_settings = (
+        dict(parser.items("APPLICATIONS"))
+        if parser.has_section("APPLICATIONS")
+        else {}
+    )
+    for repo_key, repo_url in sorted(application_settings.items()):
+        if not repo_key.endswith("_repo") or not repo_url.strip():
+            continue
+        key = repo_key[: -len("_repo")]
+        skills_path = application_settings.get(
+            f"{key}_skills_path", "_agents/skills"
+        ).strip()
+        applications.append(
+            ConfiguredWorkflow(
+                key=key,
+                repository_url=repo_url.strip(),
+                skills_path=skills_path or "_agents/skills",
+                ui_modes=(),
+            )
+        )
+
     digest = hashlib.sha256()
     for path in existing:
         digest.update(str(path).encode("utf-8"))
@@ -107,6 +130,7 @@ def load_configuration(
         paths=tuple(str(path) for path in existing),
         content_hash=digest.hexdigest(),
         workflows=tuple(workflows),
+        applications=tuple(applications),
     )
 
 

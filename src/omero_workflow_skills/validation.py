@@ -7,6 +7,7 @@ import mimetypes
 import re
 from collections.abc import Mapping
 from pathlib import PurePosixPath
+from typing import Literal
 
 import yaml
 
@@ -26,6 +27,8 @@ def validate_skill(
     directory_name: str,
     files: Mapping[str, bytes],
     package_url: str,
+    *,
+    source_kind: Literal["workflow", "application"] = "workflow",
 ) -> tuple[WorkflowSkillSummary, tuple[SkillFile, ...]]:
     if len(files) > MAX_FILES_PER_SKILL:
         raise ValidationError(f"{directory_name}: too many files")
@@ -114,6 +117,8 @@ def validate_skill(
             sha256=package_hash.hexdigest(),
             package_url=package_url,
             match=match,
+            source_kind=source_kind,
+            source_key=workflow_key,
         ),
         tuple(validated_files),
     )
