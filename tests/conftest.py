@@ -17,6 +17,8 @@ metadata:
   biomero-file-extensions: ".duckdb,.sqlite"
   biomero-filename-globs: "*measurements*.duckdb"
   biomero-required-tables: "schema_info,measurement_runs"
+  biomero-required-resources: "references/REFERENCE.md"
+  biomero-required-capabilities: "zarr-render-v2,zarr-gallery-v1"
 ---
 
 # Instructions

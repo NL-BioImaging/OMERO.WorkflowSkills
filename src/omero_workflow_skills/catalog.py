@@ -471,6 +471,12 @@ def _cached_packages(
                 **{
                     **skill_raw,
                     "consumers": tuple(skill_raw.get("consumers", ())),
+                    "required_resources": tuple(
+                        skill_raw.get("required_resources", ())
+                    ),
+                    "required_capabilities": tuple(
+                        skill_raw.get("required_capabilities", ())
+                    ),
                     "match": SkillMatchRules(
                         extensions=tuple(match_raw.get("extensions", ())),
                         filename_globs=tuple(match_raw.get("filename_globs", ())),

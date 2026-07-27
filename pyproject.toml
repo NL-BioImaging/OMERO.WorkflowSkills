@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "omero-workflow-skills"
-version = "0.2.0"
+version = "0.2.1"
 description = "Validated, revision-aware Agent Skills catalog for BIOMERO workflow and OMERO application repositories"
 readme = "README.md"
 requires-python = ">=3.10,<3.13"

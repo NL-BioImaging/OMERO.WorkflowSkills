@@ -53,6 +53,8 @@ class WorkflowSkillSummary:
     sha256: str
     package_url: str
     match: SkillMatchRules = field(default_factory=SkillMatchRules)
+    required_resources: tuple[str, ...] = ()
+    required_capabilities: tuple[str, ...] = ()
     source_kind: Literal["workflow", "application"] = "workflow"
     source_key: str = ""
 

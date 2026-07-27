@@ -15,6 +15,7 @@ from .errors import ValidationError
 from .models import SkillFile, SkillMatchRules, WorkflowSkillSummary
 
 NAME_PATTERN = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+CAPABILITY_PATTERN = re.compile(r"^[a-z0-9]+(?:[-.][a-z0-9]+)*$")
 MAX_SKILLS_PER_WORKFLOW = 32
 MAX_FILES_PER_SKILL = 128
 MAX_FILE_BYTES = 1024 * 1024
@@ -102,6 +103,27 @@ def validate_skill(
         required_tables=_csv(metadata.get("biomero-required-tables", "")),
         auto_activate=metadata.get("biomero-auto-activate", "false").strip().lower() == "true",
     )
+    required_resources = _csv(metadata.get("biomero-required-resources", ""))
+    available_paths = {item.path for item in validated_files}
+    for resource in required_resources:
+        pure = PurePosixPath(resource)
+        if (
+            pure.is_absolute()
+            or len(pure.parts) != 2
+            or pure.parts[0] != "references"
+            or resource not in available_paths
+        ):
+            raise ValidationError(
+                f"{directory_name}: required resource is missing or invalid: {resource}"
+            )
+    required_capabilities = _csv(
+        metadata.get("biomero-required-capabilities", "")
+    )
+    if any(
+        not CAPABILITY_PATTERN.fullmatch(capability)
+        for capability in required_capabilities
+    ):
+        raise ValidationError(f"{directory_name}: invalid required capability")
     package_hash = hashlib.sha256()
     for item in validated_files:
         package_hash.update(item.path.encode("utf-8"))
@@ -117,6 +139,8 @@ def validate_skill(
             sha256=package_hash.hexdigest(),
             package_url=package_url,
             match=match,
+            required_resources=required_resources,
+            required_capabilities=required_capabilities,
             source_kind=source_kind,
             source_key=workflow_key,
         ),
