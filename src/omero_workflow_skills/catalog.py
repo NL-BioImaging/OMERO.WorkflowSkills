@@ -35,6 +35,25 @@ from .validation import MAX_SKILLS_PER_WORKFLOW, validate_skill
 CATALOG_SCHEMA = "nl.bioimaging.omero-workflow-skills.v1"
 
 
+def _same_workflow_skill_alias(
+    definitions: list[tuple[WorkflowCatalogEntry, WorkflowSkillSummary]],
+) -> bool:
+    """Accept one immutable workflow repository registered under multiple keys."""
+
+    fingerprints = {
+        (
+            entry.source.source_kind,
+            entry.source.owner,
+            entry.source.repository,
+            entry.source.resolved_commit,
+            entry.source.skills_path,
+            skill.sha256,
+        )
+        for entry, skill in definitions
+    }
+    return len(fingerprints) == 1 and next(iter(fingerprints))[0] == "workflow"
+
+
 class WorkflowSkillCatalog:
     def __init__(
         self,
@@ -75,11 +94,17 @@ class WorkflowSkillCatalog:
                 packages.update(found_packages)
                 diagnostics.extend(found_diagnostics)
 
-        duplicates: dict[str, list[str]] = {}
+        duplicates: dict[
+            str, list[tuple[WorkflowCatalogEntry, WorkflowSkillSummary]]
+        ] = {}
         for entry in (*workflow_entries, *application_entries):
             for skill in entry.skills:
-                duplicates.setdefault(skill.name, []).append(_source_key(entry.source))
-        conflicts = {name: keys for name, keys in duplicates.items() if len(keys) > 1}
+                duplicates.setdefault(skill.name, []).append((entry, skill))
+        conflicts = {
+            name: definitions
+            for name, definitions in duplicates.items()
+            if len(definitions) > 1 and not _same_workflow_skill_alias(definitions)
+        }
         if conflicts:
             def without_conflicts(
                 entries: list[WorkflowCatalogEntry],
@@ -102,7 +127,10 @@ class WorkflowSkillCatalog:
 
             workflow_entries = without_conflicts(workflow_entries)
             application_entries = without_conflicts(application_entries)
-            for name, keys in sorted(conflicts.items()):
+            for name, definitions in sorted(conflicts.items()):
+                keys = [
+                    _source_key(entry.source) for entry, _skill in definitions
+                ]
                 diagnostics.append(
                     CatalogDiagnostic(
                         level="error",

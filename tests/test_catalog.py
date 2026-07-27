@@ -197,3 +197,42 @@ viewer_repo = https://github.com/example/viewer/tree/v0.3.0
     assert result.workflows[0].skills == ()
     assert result.applications[0].skills == ()
     assert any(item.code == "duplicate-skill-name" for item in result.diagnostics)
+
+
+def test_identical_skill_from_workflow_aliases_remains_available(tmp_path):
+    config = tmp_path / "slurm-config.ini"
+    config.write_text(
+        """
+[WORKFLOWS]
+cisegmentation_repo = https://github.com/example/workflow/tree/v1.2.3
+rt_cisegmentation_repo = https://github.com/example/workflow/tree/v1.2.3
+""".strip(),
+        encoding="utf-8",
+    )
+    catalog = WorkflowSkillCatalog(
+        config_path=config,
+        cache_dir=tmp_path / "cache",
+        github=FakeGitHub(),
+    )
+
+    result = catalog.get_catalog("omero-analysis-chat")
+
+    assert [entry.skills[0].name for entry in result.workflows] == [
+        "analyze-example-measurements",
+        "analyze-example-measurements",
+    ]
+    assert not any(
+        item.code == "duplicate-skill-name" for item in result.diagnostics
+    )
+    assert (
+        catalog.get_package(
+            "cisegmentation", "analyze-example-measurements"
+        ).skill.name
+        == "analyze-example-measurements"
+    )
+    assert (
+        catalog.get_package(
+            "rt_cisegmentation", "analyze-example-measurements"
+        ).skill.name
+        == "analyze-example-measurements"
+    )
