@@ -21,7 +21,7 @@ The catalog supports three complementary kinds of skills:
 
 | Skill type | Purpose | Current consumer | Activation |
 | --- | --- | --- | --- |
-| Attachment analysis | Explain and analyze workflow-generated measurement files | `omero-analysis-chat`, `omero-jupyterlite` | May activate automatically when files or schemas match |
+| Attachment analysis | Explain and analyze workflow-generated measurement files | `omero-analysis`, `omero-jupyterlite` | May activate automatically when files or schemas match |
 | Workflow operation | Help select, configure, launch, monitor, and explain a BIOMERO workflow | `omero-biomero` | Must be initiated explicitly by the user |
 | Application operation | Explain and operate one configured OMERO application through authenticated host capabilities | Application-specific consumers | Must be initiated explicitly by the user |
 
@@ -69,7 +69,7 @@ description: Analyze Example Workflow measurement databases. Use for its DuckDB 
 metadata:
   version: "1"
   biomero-purpose: attachment-analysis
-  biomero-consumers: "omero-analysis-chat,omero-jupyterlite"
+  biomero-consumers: "omero-analysis,omero-jupyterlite"
   biomero-auto-activate: "true"
   biomero-file-extensions: ".duckdb,.sqlite"
   biomero-filename-globs: "*measurements*.duckdb,*measurements*.sqlite"
@@ -274,7 +274,7 @@ description: Operate Example Application through an authenticated OMERO consumer
 metadata:
   version: "1"
   biomero-purpose: "application-operation"
-  biomero-consumers: "omero-analysis-chat"
+  biomero-consumers: "omero-analysis"
   biomero-auto-activate: "false"
 ---
 ```

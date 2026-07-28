@@ -20,7 +20,7 @@ def test_builds_consumer_filtered_catalog(config_file, tmp_path):
         github=FakeGitHub(),
         package_url=lambda workflow, skill: f"/api/{workflow}/{skill}/",
     )
-    result = catalog.get_catalog("omero-analysis-chat")
+    result = catalog.get_catalog("omero-analysis")
     assert result.schema == "nl.bioimaging.omero-workflow-skills.v1"
     assert len(result.workflows) == 1
     workflow = result.workflows[0]
@@ -47,7 +47,7 @@ def test_package_requires_catalog_or_explicit_consumer(config_file, tmp_path):
     package = catalog.get_package(
         "example",
         "analyze-example-measurements",
-        consumer="omero-analysis-chat",
+        consumer="omero-analysis",
     )
     assert package.skill.name == "analyze-example-measurements"
 
@@ -72,7 +72,7 @@ def test_missing_skill_folder_is_not_an_error(config_file, tmp_path):
         cache_dir=tmp_path / "cache",
         github=FakeGitHub(no_skills=True),
     )
-    result = catalog.get_catalog("omero-analysis-chat")
+    result = catalog.get_catalog("omero-analysis")
     assert result.workflows[0].status == "no-skills"
     assert result.diagnostics == ()
 
@@ -84,7 +84,7 @@ def test_same_source_uses_stale_cache_after_failure(config_file, tmp_path):
         cache_dir=tmp_path / "cache",
         github=fake,
     )
-    catalog.get_catalog("omero-analysis-chat")
+    catalog.get_catalog("omero-analysis")
     cache_file = next((tmp_path / "cache" / "workflows").glob("*.json"))
     cached = json.loads(cache_file.read_text(encoding="utf-8"))
     cached["source"]["ref_kind"] = "branch"
@@ -92,7 +92,7 @@ def test_same_source_uses_stale_cache_after_failure(config_file, tmp_path):
     cached["checked_at"] = "2000-01-01T00:00:00Z"
     cache_file.write_text(json.dumps(cached), encoding="utf-8")
     fake.fail = True
-    result = catalog.get_catalog("omero-analysis-chat")
+    result = catalog.get_catalog("omero-analysis")
     assert result.workflows[0].status == "stale"
     assert result.workflows[0].skills[0].name == "analyze-example-measurements"
     assert result.diagnostics[0].code == "stale-cache"
@@ -105,13 +105,13 @@ def test_changed_revision_does_not_reuse_old_cache(config_file, tmp_path):
         cache_dir=tmp_path / "cache",
         github=fake,
     )
-    catalog.get_catalog("omero-analysis-chat")
+    catalog.get_catalog("omero-analysis")
     config_file.write_text(
         config_file.read_text().replace("v1.2.3", "v2.0.0"),
         encoding="utf-8",
     )
     fake.fail = True
-    result = catalog.get_catalog("omero-analysis-chat")
+    result = catalog.get_catalog("omero-analysis")
     assert result.workflows[0].status == "error"
     assert result.workflows[0].skills == ()
 
@@ -123,7 +123,7 @@ def test_changed_ui_classification_does_not_reuse_old_cache(config_file, tmp_pat
         cache_dir=tmp_path / "cache",
         github=fake,
     )
-    catalog.get_catalog("omero-analysis-chat")
+    catalog.get_catalog("omero-analysis")
     config_file.write_text(
         config_file.read_text().replace(
             'plate_workflows = ["example"]', "plate_workflows = []"
@@ -131,7 +131,7 @@ def test_changed_ui_classification_does_not_reuse_old_cache(config_file, tmp_pat
         encoding="utf-8",
     )
     fake.fail = True
-    result = catalog.get_catalog("omero-analysis-chat")
+    result = catalog.get_catalog("omero-analysis")
     assert result.workflows[0].status == "error"
     assert result.workflows[0].source.ui_modes == ("zarr",)
 
@@ -143,7 +143,7 @@ def test_refresh_removes_cached_packages(config_file, tmp_path):
         cache_dir=tmp_path / "cache",
         github=fake,
     )
-    catalog.get_catalog("omero-analysis-chat")
+    catalog.get_catalog("omero-analysis")
     assert list((tmp_path / "cache" / "workflows").glob("*.json"))
     catalog.refresh()
     assert not list((tmp_path / "cache" / "workflows").glob("*.json"))
@@ -163,7 +163,7 @@ omero-zarr-viewer_repo = https://github.com/example/viewer/tree/v0.3.0
         cache_dir=tmp_path / "cache",
         github=FakeGitHub(),
     )
-    result = catalog.get_catalog("omero-analysis-chat")
+    result = catalog.get_catalog("omero-analysis")
     assert result.workflows == ()
     assert len(result.applications) == 1
     application = result.applications[0]
@@ -193,7 +193,7 @@ viewer_repo = https://github.com/example/viewer/tree/v0.3.0
         cache_dir=tmp_path / "cache",
         github=FakeGitHub(),
     )
-    result = catalog.get_catalog("omero-analysis-chat")
+    result = catalog.get_catalog("omero-analysis")
     assert result.workflows[0].skills == ()
     assert result.applications[0].skills == ()
     assert any(item.code == "duplicate-skill-name" for item in result.diagnostics)
@@ -215,7 +215,7 @@ rt_cisegmentation_repo = https://github.com/example/workflow/tree/v1.2.3
         github=FakeGitHub(),
     )
 
-    result = catalog.get_catalog("omero-analysis-chat")
+    result = catalog.get_catalog("omero-analysis")
 
     assert [entry.skills[0].name for entry in result.workflows] == [
         "analyze-example-measurements",

@@ -18,7 +18,7 @@ def test_validates_metadata_and_matching_rules():
         },
         "/package/",
     )
-    assert summary.consumers == ("omero-analysis-chat", "omero-jupyterlite")
+    assert summary.consumers == ("omero-analysis", "omero-jupyterlite")
     assert summary.match.auto_activate is True
     assert summary.match.required_tables == ("schema_info", "measurement_runs")
     assert summary.required_resources == ("references/REFERENCE.md",)

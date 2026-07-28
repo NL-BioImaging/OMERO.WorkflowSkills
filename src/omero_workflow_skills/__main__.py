@@ -10,7 +10,7 @@ from .catalog import WorkflowSkillCatalog
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--consumer", default="omero-analysis-chat")
+    parser.add_argument("--consumer", default="omero-analysis")
     parser.add_argument("--config")
     parser.add_argument("--refresh", action="store_true")
     args = parser.parse_args()

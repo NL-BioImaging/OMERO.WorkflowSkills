@@ -12,7 +12,7 @@ description: Analyze Example measurement databases in DuckDB or SQLite.
 metadata:
   version: "2"
   biomero-purpose: attachment-analysis
-  biomero-consumers: "omero-analysis-chat,omero-jupyterlite"
+  biomero-consumers: "omero-analysis,omero-jupyterlite"
   biomero-auto-activate: "true"
   biomero-file-extensions: ".duckdb,.sqlite"
   biomero-filename-globs: "*measurements*.duckdb"

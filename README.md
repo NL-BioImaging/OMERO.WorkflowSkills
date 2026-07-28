@@ -7,7 +7,7 @@ directory, and exposes typed catalog data to OMERO plugins.
 
 It is designed as a shared dependency of
 [OMERO.JupyterLite](https://github.com/NL-BioImaging/OMERO.JupyterLite) and
-[OMERO.AnalysisChat](https://github.com/NL-BioImaging/OMERO.AnalysisChat).
+[OMERO.Analysis](https://github.com/NL-BioImaging/OMERO.Analysis).
 It is not an OMERO.web application and does not modify or import
 `OMERO.biomero`.
 
@@ -17,7 +17,7 @@ It is not an OMERO.web application and does not modify or import
 from omero_workflow_skills import WorkflowSkillCatalog
 
 catalog = WorkflowSkillCatalog()
-available = catalog.get_catalog("omero-analysis-chat")
+available = catalog.get_catalog("omero-analysis")
 package = catalog.get_package(
     "cisegmentation",
     "analyze-cisegmentation-measurements",
@@ -36,7 +36,7 @@ They appear in `catalog.applications`; existing `catalog.workflows` and
 `get_package()` behavior remains unchanged. Sources and summaries expose
 `source_kind` and `source_key` so consumers can distinguish the two.
 
-For stateless adapters, `get_package(..., consumer="omero-analysis-chat")` is
+For stateless adapters, `get_package(..., consumer="omero-analysis")` is
 also supported and performs the consumer-filtered catalog lookup first.
 
 The package reads `OMERO_WORKFLOW_SKILLS_CONFIG` when set. Otherwise it merges
