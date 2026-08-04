@@ -321,8 +321,9 @@ portable workflow knowledge must not contain plugin-specific browser paths.
 Pin workflow URLs to a release tag or commit for reproducibility. A branch is
 suitable during development but is revalidated hourly. CI tests Python
 3.10–3.12 and verifies both the canonical distribution and the temporary
-old-name metadata shim. A `v*` tag creates GitHub release artifacts and uses
-trusted publishing for PyPI after its environment is configured.
+old-name metadata shim. A `v*` tag includes both in the GitHub release and
+uses trusted publishing for the canonical distribution on PyPI after its
+environment is configured.
 
 Publish portable skills in the workflow repository release before updating
 BIOMERO's workflow URL and before removing a legacy bundled skill from a
