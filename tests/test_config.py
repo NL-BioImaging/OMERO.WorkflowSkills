@@ -43,7 +43,7 @@ def test_environment_override(monkeypatch, tmp_path):
     assert result.workflows[0].key == "a"
 
 
-def test_reads_application_skill_sources(tmp_path):
+def test_ignores_application_skill_sources(tmp_path):
     path = tmp_path / "slurm-config.ini"
     path.write_text(
         """
@@ -55,18 +55,12 @@ omero-zarr-viewer_skills_path = _agents/skills
     )
     result = load_configuration(path)
     assert result.workflows == ()
-    assert len(result.applications) == 1
-    application = result.applications[0]
-    assert application.key == "omero-zarr-viewer"
-    assert application.skills_path == "_agents/skills"
-    assert application.ui_modes == ()
 
 
 def test_missing_configuration_is_an_empty_authoritative_snapshot(tmp_path):
     result = load_configuration(tmp_path / "missing.ini")
     assert result.paths == ()
     assert result.workflows == ()
-    assert result.applications == ()
     assert len(result.content_hash) == 64
 
 

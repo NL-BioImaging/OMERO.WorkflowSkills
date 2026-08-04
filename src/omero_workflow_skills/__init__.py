@@ -1,39 +1,21 @@
-"""Revision-aware Agent Skills catalog for BIOMERO workflow repositories."""
+"""Temporary import compatibility for biomero_workflow_skills."""
 
-from .catalog import WorkflowSkillCatalog
-from .errors import (
-    CatalogError,
-    ConfigurationError,
-    GitHubError,
-    PermanentGitHubError,
-    SkillNotFoundError,
-    TransientGitHubError,
-    ValidationError,
-)
-from .models import (
-    CatalogDiagnostic,
-    SkillMatchRules,
-    WorkflowSkillCatalogV1,
-    WorkflowSkillPackage,
-    WorkflowSkillSummary,
-    WorkflowSource,
-)
+import sys
+from importlib import import_module
 
-__all__ = [
-    "CatalogDiagnostic",
-    "CatalogError",
-    "ConfigurationError",
-    "GitHubError",
-    "PermanentGitHubError",
-    "SkillMatchRules",
-    "SkillNotFoundError",
-    "TransientGitHubError",
-    "ValidationError",
-    "WorkflowSkillCatalog",
-    "WorkflowSkillCatalogV1",
-    "WorkflowSkillPackage",
-    "WorkflowSkillSummary",
-    "WorkflowSource",
-]
+from biomero_workflow_skills import *  # noqa: F401,F403
+from biomero_workflow_skills import __all__ as __all__
+from biomero_workflow_skills import __version__ as __version__
 
-__version__ = "0.2.2"
+for _module in (
+    "cache",
+    "catalog",
+    "config",
+    "errors",
+    "github",
+    "models",
+    "validation",
+):
+    sys.modules[f"{__name__}.{_module}"] = import_module(
+        f"biomero_workflow_skills.{_module}"
+    )

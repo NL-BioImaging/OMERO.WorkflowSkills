@@ -35,6 +35,16 @@ from .validation import MAX_SKILLS_PER_WORKFLOW, validate_skill
 CATALOG_SCHEMA = "nl.bioimaging.omero-workflow-skills.v1"
 
 
+def _eligible_for_analysis(
+    package: WorkflowSkillPackage, consumer: str
+) -> bool:
+    return (
+        consumer == "omero-analysis"
+        and consumer in package.skill.consumers
+        and package.skill.purpose == "attachment-analysis"
+    )
+
+
 def _same_workflow_skill_alias(
     definitions: list[tuple[WorkflowCatalogEntry, WorkflowSkillSummary]],
 ) -> bool:
@@ -75,7 +85,6 @@ class WorkflowSkillCatalog:
         consumer = _consumer(consumer)
         configuration = load_configuration(self.config_path)
         workflow_entries: list[WorkflowCatalogEntry] = []
-        application_entries: list[WorkflowCatalogEntry] = []
         diagnostics: list[CatalogDiagnostic] = []
         packages: dict[tuple[str, str], WorkflowSkillPackage] = {}
         with self.cache.locked():
@@ -86,18 +95,11 @@ class WorkflowSkillCatalog:
                 workflow_entries.append(entry)
                 packages.update(found_packages)
                 diagnostics.extend(found_diagnostics)
-            for application in configuration.applications:
-                entry, found_packages, found_diagnostics = self._source(
-                    application, consumer, source_kind="application"
-                )
-                application_entries.append(entry)
-                packages.update(found_packages)
-                diagnostics.extend(found_diagnostics)
 
         duplicates: dict[
             str, list[tuple[WorkflowCatalogEntry, WorkflowSkillSummary]]
         ] = {}
-        for entry in (*workflow_entries, *application_entries):
+        for entry in workflow_entries:
             for skill in entry.skills:
                 duplicates.setdefault(skill.name, []).append((entry, skill))
         conflicts = {
@@ -126,7 +128,6 @@ class WorkflowSkillCatalog:
                 return filtered
 
             workflow_entries = without_conflicts(workflow_entries)
-            application_entries = without_conflicts(application_entries)
             for name, definitions in sorted(conflicts.items()):
                 keys = [
                     _source_key(entry.source) for entry, _skill in definitions
@@ -149,7 +150,7 @@ class WorkflowSkillCatalog:
             consumer=consumer,
             config_hash=configuration.content_hash,
             workflows=tuple(workflow_entries),
-            applications=tuple(application_entries),
+            applications=(),
             diagnostics=tuple(diagnostics),
         )
         self._last_catalog = catalog
@@ -169,7 +170,7 @@ class WorkflowSkillCatalog:
             catalog = self._last_catalog
         allowed = {
             (_source_key(entry.source), skill.name)
-            for entry in (*catalog.workflows, *catalog.applications)
+            for entry in catalog.workflows
             for skill in entry.skills
         }
         key = (workflow_key, skill_name)
@@ -193,11 +194,10 @@ class WorkflowSkillCatalog:
         configuration = load_configuration(self.config_path)
         return {
             "schema": CATALOG_SCHEMA,
-            "version": "0.2.0",
+            "version": "0.3.0",
             "config_paths": list(configuration.paths),
             "config_hash": configuration.content_hash,
             "workflow_count": len(configuration.workflows),
-            "application_count": len(configuration.applications),
             "cache_dir": str(self.cache.root),
             "last_catalog": self._last_catalog.to_dict() if self._last_catalog else None,
         }
@@ -232,7 +232,7 @@ class WorkflowSkillCatalog:
             filtered = {
                 key: package
                 for key, package in restored.items()
-                if consumer in package.skill.consumers
+                if _eligible_for_analysis(package, consumer)
             }
             cached_status: CatalogStatus = "ready" if restored else "no-skills"
             return (
@@ -266,7 +266,7 @@ class WorkflowSkillCatalog:
             filtered = {
                 key: package
                 for key, package in packages.items()
-                if consumer in package.skill.consumers
+                if _eligible_for_analysis(package, consumer)
             }
             return (
                 WorkflowCatalogEntry(
@@ -285,7 +285,7 @@ class WorkflowSkillCatalog:
                 filtered = {
                     key: package
                     for key, package in restored.items()
-                    if consumer in package.skill.consumers
+                    if _eligible_for_analysis(package, consumer)
                 }
                 diagnostic = CatalogDiagnostic(
                     level="warning",

@@ -3,9 +3,9 @@ requires = ["setuptools>=69", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "omero-workflow-skills"
-version = "0.2.2"
-description = "Validated, revision-aware Agent Skills catalog for BIOMERO workflow and OMERO application repositories"
+name = "biomero-workflow-skills"
+version = "0.3.0"
+description = "Validated measurement-analysis skills from BIOMERO workflow repositories"
 readme = "README.md"
 requires-python = ">=3.10,<3.13"
 license = "AGPL-3.0-or-later"
@@ -26,9 +26,9 @@ classifiers = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/NL-BioImaging/OMERO.WorkflowSkills"
-Repository = "https://github.com/NL-BioImaging/OMERO.WorkflowSkills"
-Issues = "https://github.com/NL-BioImaging/OMERO.WorkflowSkills/issues"
+Homepage = "https://github.com/NL-BioImaging/BIOMERO.WorkflowSkills"
+Repository = "https://github.com/NL-BioImaging/BIOMERO.WorkflowSkills"
+Issues = "https://github.com/NL-BioImaging/BIOMERO.WorkflowSkills/issues"
 
 [project.optional-dependencies]
 test = [
@@ -60,4 +60,4 @@ select = ["E", "F", "I", "UP", "B", "SIM"]
 [tool.mypy]
 python_version = "3.10"
 strict = true
-packages = ["omero_workflow_skills"]
+packages = ["biomero_workflow_skills", "omero_workflow_skills"]

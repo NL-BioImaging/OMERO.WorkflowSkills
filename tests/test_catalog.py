@@ -149,7 +149,7 @@ def test_refresh_removes_cached_packages(config_file, tmp_path):
     assert not list((tmp_path / "cache" / "workflows").glob("*.json"))
 
 
-def test_builds_application_catalog_and_loads_package(tmp_path):
+def test_application_sources_are_ignored(tmp_path):
     config = tmp_path / "slurm-config.ini"
     config.write_text(
         """
@@ -165,18 +165,10 @@ omero-zarr-viewer_repo = https://github.com/example/viewer/tree/v0.3.0
     )
     result = catalog.get_catalog("omero-analysis")
     assert result.workflows == ()
-    assert len(result.applications) == 1
-    application = result.applications[0]
-    assert application.source.source_kind == "application"
-    assert application.source.source_key == "omero-zarr-viewer"
-    assert application.skills[0].source_kind == "application"
-    package = catalog.get_package(
-        "omero-zarr-viewer", "analyze-example-measurements"
-    )
-    assert package.source.configured_ref == "v0.3.0"
+    assert result.applications == ()
 
 
-def test_duplicate_names_across_workflow_and_application_are_hidden(tmp_path):
+def test_application_sources_cannot_conflict_with_workflow_skills(tmp_path):
     config = tmp_path / "slurm-config.ini"
     config.write_text(
         """
@@ -194,9 +186,9 @@ viewer_repo = https://github.com/example/viewer/tree/v0.3.0
         github=FakeGitHub(),
     )
     result = catalog.get_catalog("omero-analysis")
-    assert result.workflows[0].skills == ()
-    assert result.applications[0].skills == ()
-    assert any(item.code == "duplicate-skill-name" for item in result.diagnostics)
+    assert len(result.workflows[0].skills) == 1
+    assert result.applications == ()
+    assert not any(item.code == "duplicate-skill-name" for item in result.diagnostics)
 
 
 def test_identical_skill_from_workflow_aliases_remains_available(tmp_path):
