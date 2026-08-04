@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import pytest
+from omero_workflow_skills.validation import validate_skill
 
 from omero_workflow_skills import ValidationError
-from omero_workflow_skills.validation import validate_skill
 
 from .conftest import SKILL
 
@@ -18,7 +18,7 @@ def test_validates_metadata_and_matching_rules():
         },
         "/package/",
     )
-    assert summary.consumers == ("omero-analysis", "omero-jupyterlite")
+    assert summary.consumers == ("omero-analysis",)
     assert summary.match.auto_activate is True
     assert summary.match.required_tables == ("schema_info", "measurement_runs")
     assert summary.required_resources == ("references/REFERENCE.md",)

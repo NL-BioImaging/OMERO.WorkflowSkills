@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "omero-workflow-skills"
+version = "0.3.0"
+description = "Compatibility metadata shim for biomero-workflow-skills"
+readme = "README.md"
+requires-python = ">=3.10,<3.13"
+license = "AGPL-3.0-or-later"
+authors = [
+  { name = "NL-BioImaging" }
+]
+dependencies = ["biomero-workflow-skills==0.3.0"]
+
+[project.urls]
+Homepage = "https://github.com/NL-BioImaging/BIOMERO.WorkflowSkills"
+Repository = "https://github.com/NL-BioImaging/BIOMERO.WorkflowSkills"
+Issues = "https://github.com/NL-BioImaging/BIOMERO.WorkflowSkills/issues"
+
+[tool.setuptools]
+py-modules = []

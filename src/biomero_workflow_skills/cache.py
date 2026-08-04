@@ -16,8 +16,14 @@ from .errors import CatalogError
 
 class CatalogCache:
     def __init__(self, root: str | os.PathLike[str] | None = None) -> None:
-        configured = os.environ.get("OMERO_WORKFLOW_SKILLS_CACHE_DIR", "").strip()
-        self.root = Path(root or configured or Path.home() / ".cache/omero-workflow-skills")
+        configured = (
+            os.environ.get("BIOMERO_WORKFLOW_SKILLS_CACHE_DIR", "").strip()
+            or os.environ.get("OMERO_WORKFLOW_SKILLS_CACHE_DIR", "").strip()
+        )
+        current = Path.home() / ".cache/biomero-workflow-skills"
+        legacy = Path.home() / ".cache/omero-workflow-skills"
+        fallback = legacy if legacy.exists() and not current.exists() else current
+        self.root = Path(root or configured or fallback)
 
     @contextmanager
     def locked(self, timeout: float = 15.0) -> Iterator[None]:

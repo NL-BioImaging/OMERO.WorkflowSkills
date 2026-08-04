@@ -3,7 +3,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import pytest
-
 from omero_workflow_skills.github import RepositoryLocation, ResolvedRepository
 
 SKILL = """---
@@ -12,7 +11,7 @@ description: Analyze Example measurement databases in DuckDB or SQLite.
 metadata:
   version: "2"
   biomero-purpose: attachment-analysis
-  biomero-consumers: "omero-analysis,omero-jupyterlite"
+  biomero-consumers: "omero-analysis"
   biomero-auto-activate: "true"
   biomero-file-extensions: ".duckdb,.sqlite"
   biomero-filename-globs: "*measurements*.duckdb"

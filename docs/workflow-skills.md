@@ -6,7 +6,6 @@
 - [Repository layout](#repository-layout)
 - [Attachment-analysis skill](#attachment-analysis-skill)
 - [Workflow-operation skill](#workflow-operation-skill)
-- [Application-operation skill](#application-operation-skill)
 - [Shared metadata rules](#shared-metadata-rules)
 - [Revision and configuration](#revision-and-configuration)
 - [Security and privacy](#security-and-privacy)
@@ -17,21 +16,17 @@
 
 ## Choose the skill type
 
-The catalog supports three complementary kinds of skills:
+The source repositories may contain complementary skill kinds, but this
+provider returns only attachment-analysis skills to OMERO.Analysis:
 
 | Skill type | Purpose | Current consumer | Activation |
 | --- | --- | --- | --- |
-| Attachment analysis | Explain and analyze workflow-generated measurement files | `omero-analysis`, `omero-jupyterlite` | May activate automatically when files or schemas match |
+| Attachment analysis | Explain and analyze workflow-generated measurement files | `omero-analysis` | May activate automatically when files or schemas match |
 | Workflow operation | Help select, configure, launch, monitor, and explain a BIOMERO workflow | `omero-biomero` | Must be initiated explicitly by the user |
-| Application operation | Explain and operate one configured OMERO application through authenticated host capabilities | Application-specific consumers | Must be initiated explicitly by the user |
 
 Keep these as separate skills when a repository needs both. Analysis clients
 must not receive workflow-launch instructions, and a workflow-operation skill
 should not duplicate a large measurement schema.
-
-Application-operation skills come from configured application repositories.
-They document a portable application contract; they do not grant access or
-prescribe a consumer's internal route or tool name.
 
 ## Repository layout
 
@@ -69,7 +64,7 @@ description: Analyze Example Workflow measurement databases. Use for its DuckDB 
 metadata:
   version: "1"
   biomero-purpose: attachment-analysis
-  biomero-consumers: "omero-analysis,omero-jupyterlite"
+  biomero-consumers: "omero-analysis"
   biomero-auto-activate: "true"
   biomero-file-extensions: ".duckdb,.sqlite"
   biomero-filename-globs: "*measurements*.duckdb,*measurements*.sqlite"
@@ -263,29 +258,6 @@ Before releasing:
 skill contract now makes workflow releases ready for that integration, but
 does not add workflow-operation tools to OMERO.biomero by itself.
 
-## Application-operation skill
-
-Store application skills under the same `_agents/skills` layout and use:
-
-```yaml
----
-name: use-example-application
-description: Operate Example Application through an authenticated OMERO consumer. Use when a user asks to open, inspect, or export supported application data.
-metadata:
-  version: "1"
-  biomero-purpose: "application-operation"
-  biomero-consumers: "omero-analysis"
-  biomero-auto-activate: "false"
----
-```
-
-Document stable inputs, coordinate/index conventions, outputs, limits,
-permission checks, identity checks, and failure behavior in text references.
-Phrase the procedure in terms of capabilities such as “inspect active OMERO
-context”, “open a focused view”, or “render an export”. Never invent OMERO IDs,
-bypass the current group, include deployment paths, or claim that the skill
-itself provides an operational capability.
-
 ## Shared metadata rules
 
 `biomero-consumers` is mandatory for distribution. Consumers receive only
@@ -304,17 +276,8 @@ an administrator removes a workflow, changes its revision, or removes a skill
 in a new release, consumers receive a new authoritative snapshot and discard
 their managed copy.
 
-Non-workflow repositories are opt-in through `[APPLICATIONS]`:
-
-```ini
-[APPLICATIONS]
-example-application_repo = https://github.com/example/application/tree/v1.0.0
-example-application_skills_path = _agents/skills
-```
-
-Application entries are returned in the additive `applications` collection.
-Skill names must remain unique across workflows and applications. Existing
-workflow-only consumers may ignore application entries.
+`[APPLICATIONS]` is not a discovery source. OMERO applications publish their
+own skills through authenticated provider endpoints.
 
 ## Security and privacy
 
@@ -330,7 +293,7 @@ instructions, hashes, and source provenance. They never contact GitHub.
 ## Caching
 
 Validated data are written atomically below
-`~/.cache/omero-workflow-skills`. Processes coordinate through a lock file.
+`~/.cache/biomero-workflow-skills`. Processes coordinate through a lock file.
 Configured branches are revalidated after one hour. Immutable GitHub tags are
 reused by resolved commit. On a transient failure, cached content is marked
 stale only when it belongs to the same configured repository and ref.
@@ -341,8 +304,11 @@ This distribution is deliberately not listed in `omero.web.apps`. An installed
 consumer exposes authenticated catalog and package routes and an admin-only
 refresh route. Multiple consumers use the same validated filesystem cache.
 
-The first consumer installs the companion wheel from its offline wheelhouse.
-Installing another consumer retains a compatible `>=0.1,<0.3` version.
+Analysis may install the companion wheel from its offline wheelhouse. The
+provider remains optional: generic Chat starts without it. During the temporary
+compatibility window, `omero_workflow_skills` re-exports the new
+`biomero_workflow_skills` package and the `omero-workflow-skills` metadata shim
+depends on the new distribution.
 Removing a consumer must check installed distribution requirements first; the
 catalog is removed only when no installed consumer still requires it.
 
@@ -354,8 +320,9 @@ portable workflow knowledge must not contain plugin-specific browser paths.
 
 Pin workflow URLs to a release tag or commit for reproducibility. A branch is
 suitable during development but is revalidated hourly. CI tests Python
-3.10–3.12 and verifies each wheel. A `v*` tag creates GitHub release artifacts
-and uses trusted publishing for PyPI after its environment is configured.
+3.10–3.12 and verifies both the canonical distribution and the temporary
+old-name metadata shim. A `v*` tag creates GitHub release artifacts and uses
+trusted publishing for PyPI after its environment is configured.
 
 Publish portable skills in the workflow repository release before updating
 BIOMERO's workflow URL and before removing a legacy bundled skill from a

@@ -18,6 +18,7 @@ jobs:
           python-version: "3.12"
       - run: python -m pip install --upgrade pip build
       - run: python -m build
+      - run: python -m build --outdir dist compat
       - run: python scripts/verify_wheel.py dist/*.whl
       - uses: actions/upload-artifact@v4
         with:
@@ -42,7 +43,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: pypi
-      url: https://pypi.org/p/omero-workflow-skills
+      url: https://pypi.org/p/biomero-workflow-skills
     steps:
       - uses: actions/download-artifact@v4
         with:
