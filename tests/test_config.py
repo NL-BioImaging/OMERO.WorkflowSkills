@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from omero_workflow_skills.config import load_configuration
+from biomero_workflow_skills.config import load_configuration
 
 
 def test_merges_models_then_workflows(tmp_path):
@@ -37,7 +37,7 @@ def test_environment_override(monkeypatch, tmp_path):
         "[WORKFLOWS]\na_repo=https://github.com/x/y/tree/main\n",
         encoding="utf-8",
     )
-    monkeypatch.setenv("OMERO_WORKFLOW_SKILLS_CONFIG", str(path))
+    monkeypatch.setenv("BIOMERO_WORKFLOW_SKILLS_CONFIG", str(path))
     result = load_configuration()
     assert result.paths == (str(path.resolve()),)
     assert result.workflows[0].key == "a"

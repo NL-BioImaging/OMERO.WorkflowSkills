@@ -3,7 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import pytest
-from omero_workflow_skills.github import RepositoryLocation, ResolvedRepository
+
+from biomero_workflow_skills.github import RepositoryLocation, ResolvedRepository
 
 SKILL = """---
 name: analyze-example-measurements
@@ -34,7 +35,7 @@ class FakeGitHub:
 
     def resolve_repository(self, repository_url: str) -> ResolvedRepository:
         if self.fail:
-            from omero_workflow_skills import TransientGitHubError
+            from biomero_workflow_skills import TransientGitHubError
 
             raise TransientGitHubError("temporary GitHub outage")
         ref = repository_url.split("/tree/", 1)[1] if "/tree/" in repository_url else "main"
@@ -48,7 +49,7 @@ class FakeGitHub:
         self, source: ResolvedRepository, path: str
     ) -> list[dict[str, object]]:
         if self.no_skills and path == "_agents/skills":
-            from omero_workflow_skills import GitHubError
+            from biomero_workflow_skills import GitHubError
 
             raise GitHubError("GitHub resource was not found")
         if path == "_agents/skills":

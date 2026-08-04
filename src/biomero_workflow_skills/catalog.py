@@ -32,7 +32,7 @@ from .models import (
 )
 from .validation import MAX_SKILLS_PER_WORKFLOW, validate_skill
 
-CATALOG_SCHEMA = "nl.bioimaging.omero-workflow-skills.v1"
+CATALOG_SCHEMA = "nl.bioimaging.biomero-workflow-skills.v1"
 
 
 def _eligible_for_analysis(

@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import pytest
-from omero_workflow_skills.github import parse_repository_url
 
-from omero_workflow_skills import GitHubError
+from biomero_workflow_skills import GitHubError
+from biomero_workflow_skills.github import parse_repository_url
 
 
 @pytest.mark.parametrize(

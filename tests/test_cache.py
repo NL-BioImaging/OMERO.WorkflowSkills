@@ -3,9 +3,9 @@ from __future__ import annotations
 import threading
 
 import pytest
-from omero_workflow_skills.cache import CatalogCache
 
-from omero_workflow_skills import CatalogError
+from biomero_workflow_skills import CatalogError
+from biomero_workflow_skills.cache import CatalogCache
 
 
 def test_atomic_roundtrip_and_corruption_recovery(tmp_path):

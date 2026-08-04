@@ -36,7 +36,6 @@ jobs:
           python-version: "3.12"
       - run: python -m pip install --upgrade pip build
       - run: python -m build
-      - run: python -m build --outdir dist compat
       - run: python scripts/verify_wheel.py dist/*.whl
       - uses: actions/upload-artifact@v4
         with:
