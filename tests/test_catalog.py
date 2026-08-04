@@ -4,7 +4,7 @@ import json
 
 import pytest
 
-from omero_workflow_skills import (
+from biomero_workflow_skills import (
     CatalogError,
     SkillNotFoundError,
     WorkflowSkillCatalog,
@@ -21,7 +21,7 @@ def test_builds_consumer_filtered_catalog(config_file, tmp_path):
         package_url=lambda workflow, skill: f"/api/{workflow}/{skill}/",
     )
     result = catalog.get_catalog("omero-analysis")
-    assert result.schema == "nl.bioimaging.omero-workflow-skills.v1"
+    assert result.schema == "nl.bioimaging.biomero-workflow-skills.v1"
     assert len(result.workflows) == 1
     workflow = result.workflows[0]
     assert workflow.status == "ready"

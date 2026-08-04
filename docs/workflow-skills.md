@@ -305,10 +305,7 @@ consumer exposes authenticated catalog and package routes and an admin-only
 refresh route. Multiple consumers use the same validated filesystem cache.
 
 Analysis may install the companion wheel from its offline wheelhouse. The
-provider remains optional: generic Chat starts without it. During the temporary
-compatibility window, `omero_workflow_skills` re-exports the new
-`biomero_workflow_skills` package and the `omero-workflow-skills` metadata shim
-depends on the new distribution.
+provider remains optional: generic Chat starts without it.
 Removing a consumer must check installed distribution requirements first; the
 catalog is removed only when no installed consumer still requires it.
 
@@ -320,10 +317,9 @@ portable workflow knowledge must not contain plugin-specific browser paths.
 
 Pin workflow URLs to a release tag or commit for reproducibility. A branch is
 suitable during development but is revalidated hourly. CI tests Python
-3.10–3.12 and verifies both the canonical distribution and the temporary
-old-name metadata shim. A `v*` tag includes both in the GitHub release and
-uses trusted publishing for the canonical distribution on PyPI after its
-environment is configured.
+3.10–3.12 and verifies the canonical distribution. A `v*` tag creates the
+GitHub release and uses trusted publishing for PyPI after its environment is
+configured.
 
 Publish portable skills in the workflow repository release before updating
 BIOMERO's workflow URL and before removing a legacy bundled skill from a

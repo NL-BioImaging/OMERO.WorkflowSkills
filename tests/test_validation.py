@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import pytest
-from omero_workflow_skills.validation import validate_skill
 
-from omero_workflow_skills import ValidationError
+from biomero_workflow_skills import ValidationError
+from biomero_workflow_skills.validation import validate_skill
 
 from .conftest import SKILL
 

@@ -60,4 +60,4 @@ select = ["E", "F", "I", "UP", "B", "SIM"]
 [tool.mypy]
 python_version = "3.10"
 strict = true
-packages = ["biomero_workflow_skills", "omero_workflow_skills"]
+packages = ["biomero_workflow_skills"]

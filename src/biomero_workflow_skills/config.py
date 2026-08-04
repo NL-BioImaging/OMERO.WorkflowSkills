@@ -51,10 +51,7 @@ def _list_setting(parser: configparser.ConfigParser, key: str) -> set[str]:
 def _candidate_paths(explicit: str | os.PathLike[str] | None) -> tuple[Path, ...]:
     if explicit is not None:
         return (Path(explicit).expanduser(),)
-    environment = (
-        os.environ.get("BIOMERO_WORKFLOW_SKILLS_CONFIG", "").strip()
-        or os.environ.get("OMERO_WORKFLOW_SKILLS_CONFIG", "").strip()
-    )
+    environment = os.environ.get("BIOMERO_WORKFLOW_SKILLS_CONFIG", "").strip()
     if environment:
         return (Path(environment).expanduser(),)
     return tuple(path.expanduser() for path in DEFAULT_CONFIG_PATHS)
