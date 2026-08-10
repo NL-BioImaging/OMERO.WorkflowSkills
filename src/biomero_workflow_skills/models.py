@@ -31,6 +31,11 @@ class WorkflowSource:
     ui_modes: tuple[str, ...] = ()
     source_kind: Literal["workflow", "application"] = "workflow"
     source_key: str = ""
+    plugin_identity: str = ""
+    plugin_version: str = ""
+    plugin_path: str = ""
+    plugin_sha256: str = ""
+    format: Literal["agent-plugin-v1", "legacy-agent-skills"] = "legacy-agent-skills"
 
 
 @dataclass(frozen=True)
@@ -55,6 +60,7 @@ class WorkflowSkillSummary:
     match: SkillMatchRules = field(default_factory=SkillMatchRules)
     required_resources: tuple[str, ...] = ()
     required_capabilities: tuple[str, ...] = ()
+    preferred_capabilities: tuple[str, ...] = ()
     source_kind: Literal["workflow", "application"] = "workflow"
     source_key: str = ""
 
@@ -99,3 +105,8 @@ class WorkflowSkillCatalogV1:
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
+
+
+@dataclass(frozen=True)
+class WorkflowSkillCatalogV2(WorkflowSkillCatalogV1):
+    """Agent Plugin-aware catalog; V1 fields remain source compatible."""

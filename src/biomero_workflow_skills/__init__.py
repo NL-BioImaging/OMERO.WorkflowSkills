@@ -14,6 +14,7 @@ from .models import (
     CatalogDiagnostic,
     SkillMatchRules,
     WorkflowSkillCatalogV1,
+    WorkflowSkillCatalogV2,
     WorkflowSkillPackage,
     WorkflowSkillSummary,
     WorkflowSource,
@@ -31,9 +32,10 @@ __all__ = [
     "ValidationError",
     "WorkflowSkillCatalog",
     "WorkflowSkillCatalogV1",
+    "WorkflowSkillCatalogV2",
     "WorkflowSkillPackage",
     "WorkflowSkillSummary",
     "WorkflowSource",
 ]
 
-__version__ = "0.3.0"
+__version__ = "0.4.0"

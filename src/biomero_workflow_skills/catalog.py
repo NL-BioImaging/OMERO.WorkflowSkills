@@ -14,6 +14,7 @@ from .config import ConfiguredWorkflow, load_configuration
 from .errors import (
     CatalogError,
     GitHubError,
+    PermanentGitHubError,
     SkillNotFoundError,
     TransientGitHubError,
     ValidationError,
@@ -25,14 +26,15 @@ from .models import (
     SkillFile,
     SkillMatchRules,
     WorkflowCatalogEntry,
-    WorkflowSkillCatalogV1,
+    WorkflowSkillCatalogV2,
     WorkflowSkillPackage,
     WorkflowSkillSummary,
     WorkflowSource,
 )
+from .plugin import PluginManifest, plugin_file_path, validate_plugin_manifest
 from .validation import MAX_SKILLS_PER_WORKFLOW, validate_skill
 
-CATALOG_SCHEMA = "nl.bioimaging.omero-workflow-skills.v1"
+CATALOG_SCHEMA = "nl.bioimaging.biomero-workflow-skills.v2"
 
 
 def _eligible_for_analysis(
@@ -78,10 +80,10 @@ class WorkflowSkillCatalog:
         self.package_url = package_url or (
             lambda workflow, skill: f"workflow-skills/{workflow}/{skill}/"
         )
-        self._last_catalog: WorkflowSkillCatalogV1 | None = None
+        self._last_catalog: WorkflowSkillCatalogV2 | None = None
         self._packages: dict[tuple[str, str], WorkflowSkillPackage] = {}
 
-    def get_catalog(self, consumer: str) -> WorkflowSkillCatalogV1:
+    def get_catalog(self, consumer: str) -> WorkflowSkillCatalogV2:
         consumer = _consumer(consumer)
         configuration = load_configuration(self.config_path)
         workflow_entries: list[WorkflowCatalogEntry] = []
@@ -144,7 +146,7 @@ class WorkflowSkillCatalog:
                     if key[1] == name:
                         packages.pop(key)
 
-        catalog = WorkflowSkillCatalogV1(
+        catalog = WorkflowSkillCatalogV2(
             schema=CATALOG_SCHEMA,
             generated_at=_now(),
             consumer=consumer,
@@ -194,7 +196,7 @@ class WorkflowSkillCatalog:
         configuration = load_configuration(self.config_path)
         return {
             "schema": CATALOG_SCHEMA,
-            "version": "0.3.0",
+            "version": "0.4.0",
             "config_paths": list(configuration.paths),
             "config_hash": configuration.content_hash,
             "workflow_count": len(configuration.workflows),
@@ -219,6 +221,7 @@ class WorkflowSkillCatalog:
                 workflow.key,
                 workflow.repository_url,
                 workflow.skills_path,
+                workflow.plugin_path,
                 ",".join(workflow.ui_modes),
             )
         )
@@ -247,7 +250,7 @@ class WorkflowSkillCatalog:
             )
         try:
             resolved = self.github.resolve_repository(workflow.repository_url)
-            packages, diagnostics = self._download(
+            packages, diagnostics, source = self._download(
                 workflow, resolved, source_kind=source_kind
             )
             checked_at = _now()
@@ -255,7 +258,7 @@ class WorkflowSkillCatalog:
                 "source_signature": source_signature,
                 "checked_at": checked_at,
                 "source": asdict(
-                    _workflow_source(workflow, resolved, source_kind=source_kind)
+                    source
                 ),
                 "packages": [_package_dict(package) for package in packages.values()],
                 "diagnostics": [asdict(item) for item in diagnostics],
@@ -270,9 +273,7 @@ class WorkflowSkillCatalog:
             }
             return (
                 WorkflowCatalogEntry(
-                    source=_workflow_source(
-                        workflow, resolved, source_kind=source_kind
-                    ),
+                    source=source,
                     status=status,
                     checked_at=checked_at,
                     skills=tuple(package.skill for package in filtered.values()),
@@ -327,6 +328,7 @@ class WorkflowSkillCatalog:
             configured_ref="",
             resolved_commit="",
             skills_path=workflow.skills_path,
+            plugin_path=workflow.plugin_path,
             ui_modes=workflow.ui_modes,
             source_kind=source_kind,
             source_key=workflow.key,
@@ -358,25 +360,49 @@ class WorkflowSkillCatalog:
     ) -> tuple[
         dict[tuple[str, str], WorkflowSkillPackage],
         list[CatalogDiagnostic],
+        WorkflowSource,
     ]:
+        manifest: PluginManifest | None = None
         try:
-            entries = self.github.list_directory(resolved, workflow.skills_path)
+            manifest_bytes = self.github.read_file(
+                resolved, plugin_file_path(workflow.plugin_path, "plugin.json")
+            )
+        except PermanentGitHubError as exc:
+            if "not found" not in str(exc).lower():
+                raise
+        else:
+            manifest = validate_plugin_manifest(manifest_bytes)
+        skills_path = (
+            plugin_file_path(workflow.plugin_path, "skills")
+            if manifest is not None
+            else workflow.skills_path
+        )
+        try:
+            entries = self.github.list_directory(resolved, skills_path)
         except GitHubError as exc:
             if "not found" in str(exc).lower():
-                return {}, []
+                return {}, [], _workflow_source(
+                    workflow, resolved, source_kind=source_kind, manifest=manifest,
+                    skills_path=skills_path,
+                )
             raise
         skill_directories = [item for item in entries if item.get("type") == "dir"]
         if len(skill_directories) > MAX_SKILLS_PER_WORKFLOW:
             raise ValidationError(
                 f"{workflow.key}: more than {MAX_SKILLS_PER_WORKFLOW} skills"
             )
-        source = _workflow_source(workflow, resolved, source_kind=source_kind)
+        source = _workflow_source(
+            workflow, resolved, source_kind=source_kind, manifest=manifest,
+            skills_path=skills_path,
+        )
         packages: dict[tuple[str, str], WorkflowSkillPackage] = {}
         diagnostics: list[CatalogDiagnostic] = []
         for directory in skill_directories:
             name = str(directory.get("name", ""))
-            root = f"{workflow.skills_path.rstrip('/')}/{name}"
+            root = f"{skills_path.rstrip('/')}/{name}"
             try:
+                if manifest is not None and name not in manifest.skills:
+                    raise ValidationError(f"{name}: missing BIOMERO plugin metadata")
                 files = self._skill_files(resolved, root)
                 summary, validated = validate_skill(
                     workflow.key,
@@ -384,6 +410,8 @@ class WorkflowSkillCatalog:
                     files,
                     self.package_url(workflow.key, name),
                     source_kind=source_kind,
+                    biomero_metadata=manifest.skills[name] if manifest else None,
+                    plugin_version=manifest.version if manifest else "",
                 )
                 packages[(workflow.key, name)] = WorkflowSkillPackage(
                     source=source,
@@ -400,7 +428,20 @@ class WorkflowSkillCatalog:
                         skill_name=name,
                     )
                 )
-        return packages, diagnostics
+        if manifest is not None:
+            discovered = {
+                str(item.get("name", "")) for item in skill_directories
+            }
+            missing = set(manifest.skills) - discovered
+            for name in sorted(missing):
+                diagnostics.append(
+                    CatalogDiagnostic(
+                        level="error", code="invalid-skill",
+                        message=f"{name}: declared skill directory is missing",
+                        workflow_key=workflow.key, skill_name=name,
+                    )
+                )
+        return packages, diagnostics, source
 
     def _skill_files(
         self, resolved: ResolvedRepository, root: str
@@ -448,6 +489,8 @@ def _workflow_source(
     resolved: ResolvedRepository,
     *,
     source_kind: Literal["workflow", "application"],
+    manifest: PluginManifest | None = None,
+    skills_path: str | None = None,
 ) -> WorkflowSource:
     location = resolved.location
     return WorkflowSource(
@@ -457,12 +500,17 @@ def _workflow_source(
         repository=location.repository,
         configured_ref=location.configured_ref,
         resolved_commit=resolved.commit_sha,
-        skills_path=workflow.skills_path,
+        skills_path=skills_path or workflow.skills_path,
         descriptor_path=location.descriptor_path,
         ref_kind=resolved.ref_kind,
         ui_modes=workflow.ui_modes,
         source_kind=source_kind,
         source_key=workflow.key,
+        plugin_identity=manifest.name if manifest else "",
+        plugin_version=manifest.version if manifest else "",
+        plugin_path=workflow.plugin_path,
+        plugin_sha256=manifest.sha256 if manifest else "",
+        format="agent-plugin-v1" if manifest else "legacy-agent-skills",
     )
 
 
@@ -504,6 +552,9 @@ def _cached_packages(
                     ),
                     "required_capabilities": tuple(
                         skill_raw.get("required_capabilities", ())
+                    ),
+                    "preferred_capabilities": tuple(
+                        skill_raw.get("preferred_capabilities", ())
                     ),
                     "match": SkillMatchRules(
                         extensions=tuple(match_raw.get("extensions", ())),

@@ -1,9 +1,16 @@
 # BIOMERO.WorkflowSkills
 
-`biomero-workflow-skills` is a small, framework-neutral catalog for Agent Skills
-stored with BIOMERO workflow repositories. It
-resolves exact GitHub revisions, validates each repository's `_agents/skills`
-directory, and exposes typed catalog data to OMERO plugins.
+`biomero-workflow-skills` is a small, framework-neutral catalog for Agent
+Plugins and Agent Skills stored with BIOMERO workflow repositories. It resolves
+exact GitHub revisions, validates each package locally, and exposes typed
+catalog data to OMERO plugins.
+
+Agent Plugins 1.0.0 are discovered from `<workflow>_plugin_path` (default `.`).
+The package uses its bundled schema without network access, reads only immediate
+`skills/*/SKILL.md` directories, and materializes only bounded UTF-8 skill files
+and text references. Repositories without `plugin.json` retain the 0.x
+`_agents/skills` fallback. A present but invalid manifest is reported as an
+error.
 
 It is an optional provider for
 [OMERO.Analysis](https://github.com/NL-BioImaging/OMERO.Analysis).

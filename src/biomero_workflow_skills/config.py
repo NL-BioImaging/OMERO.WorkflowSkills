@@ -23,6 +23,7 @@ class ConfiguredWorkflow:
     key: str
     repository_url: str
     skills_path: str
+    plugin_path: str
     ui_modes: tuple[str, ...]
 
 
@@ -90,11 +91,13 @@ def load_configuration(
         if not modes:
             modes.append("standard")
         skills_path = merged.get(f"{key}_skills_path", "_agents/skills").strip()
+        plugin_path = merged.get(f"{key}_plugin_path", ".").strip()
         workflows.append(
             ConfiguredWorkflow(
                 key=key,
                 repository_url=repo_url.strip(),
                 skills_path=skills_path or "_agents/skills",
+                plugin_path=plugin_path or ".",
                 ui_modes=tuple(modes),
             )
         )

@@ -7,7 +7,7 @@ import mimetypes
 import re
 from collections.abc import Mapping
 from pathlib import PurePosixPath
-from typing import Literal
+from typing import Any, Literal
 
 import yaml
 
@@ -21,6 +21,9 @@ MAX_FILES_PER_SKILL = 128
 MAX_FILE_BYTES = 1024 * 1024
 MAX_PACKAGE_BYTES = 5 * 1024 * 1024
 ALLOWED_REFERENCE_SUFFIXES = {".md", ".txt", ".json", ".yaml", ".yml"}
+STANDARD_FRONTMATTER_FIELDS = {
+    "name", "description", "license", "compatibility", "metadata", "allowed-tools"
+}
 
 
 def validate_skill(
@@ -30,6 +33,8 @@ def validate_skill(
     package_url: str,
     *,
     source_kind: Literal["workflow", "application"] = "workflow",
+    biomero_metadata: Mapping[str, Any] | None = None,
+    plugin_version: str = "",
 ) -> tuple[WorkflowSkillSummary, tuple[SkillFile, ...]]:
     if len(files) > MAX_FILES_PER_SKILL:
         raise ValidationError(f"{directory_name}: too many files")
@@ -70,6 +75,8 @@ def validate_skill(
 
     skill_text = next(item.content for item in validated_files if item.path == "SKILL.md")
     frontmatter = parse_frontmatter(skill_text)
+    if set(frontmatter) - STANDARD_FRONTMATTER_FIELDS:
+        raise ValidationError(f"{directory_name}: unsupported Agent Skills frontmatter")
     name = frontmatter.get("name")
     description = frontmatter.get("description")
     if not isinstance(name, str) or not NAME_PATTERN.fullmatch(name):
@@ -104,6 +111,24 @@ def validate_skill(
         auto_activate=metadata.get("biomero-auto-activate", "false").strip().lower() == "true",
     )
     required_resources = _csv(metadata.get("biomero-required-resources", ""))
+    required_capabilities = _csv(
+        metadata.get("biomero-required-capabilities", "")
+    )
+    preferred_capabilities: tuple[str, ...] = ()
+    if biomero_metadata is not None:
+        consumers = tuple(biomero_metadata["consumers"])
+        purpose = str(biomero_metadata["purpose"])
+        version = plugin_version or version
+        raw_match = biomero_metadata["match"]
+        match = SkillMatchRules(
+            extensions=tuple(value.lower() for value in raw_match["extensions"]),
+            filename_globs=tuple(raw_match["filename_globs"]),
+            required_tables=tuple(raw_match["required_tables"]),
+            auto_activate=bool(biomero_metadata["auto_activate"]),
+        )
+        required_resources = tuple(biomero_metadata["required_resources"])
+        required_capabilities = tuple(biomero_metadata["required_capabilities"])
+        preferred_capabilities = tuple(biomero_metadata["preferred_capabilities"])
     available_paths = {item.path for item in validated_files}
     for resource in required_resources:
         pure = PurePosixPath(resource)
@@ -116,9 +141,6 @@ def validate_skill(
             raise ValidationError(
                 f"{directory_name}: required resource is missing or invalid: {resource}"
             )
-    required_capabilities = _csv(
-        metadata.get("biomero-required-capabilities", "")
-    )
     if any(
         not CAPABILITY_PATTERN.fullmatch(capability)
         for capability in required_capabilities
@@ -141,6 +163,7 @@ def validate_skill(
             match=match,
             required_resources=required_resources,
             required_capabilities=required_capabilities,
+            preferred_capabilities=preferred_capabilities,
             source_kind=source_kind,
             source_key=workflow_key,
         ),

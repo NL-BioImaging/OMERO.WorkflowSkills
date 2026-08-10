@@ -21,11 +21,15 @@ def test_builds_consumer_filtered_catalog(config_file, tmp_path):
         package_url=lambda workflow, skill: f"/api/{workflow}/{skill}/",
     )
     result = catalog.get_catalog("omero-analysis")
-    assert result.schema == "nl.bioimaging.omero-workflow-skills.v1"
+    assert result.schema == "nl.bioimaging.biomero-workflow-skills.v2"
     assert len(result.workflows) == 1
     workflow = result.workflows[0]
     assert workflow.status == "ready"
     assert workflow.source.ui_modes == ("plate", "zarr")
+    assert workflow.source.format == "agent-plugin-v1"
+    assert workflow.source.plugin_identity == "example-workflow"
+    assert workflow.source.plugin_version == "1.2.3"
+    assert len(workflow.source.plugin_sha256) == 64
     assert workflow.skills[0].package_url.startswith("/api/example/")
     package = catalog.get_package(
         "example",
@@ -33,6 +37,27 @@ def test_builds_consumer_filtered_catalog(config_file, tmp_path):
     )
     assert package.source.configured_ref == "v1.2.3"
     assert package.files[0].path == "SKILL.md"
+    assert package.skill.preferred_capabilities == ("omero-data-query-v1",)
+
+
+def test_legacy_discovery_remains_available(config_file, tmp_path):
+    catalog = WorkflowSkillCatalog(
+        config_path=config_file, cache_dir=tmp_path / "cache", github=FakeGitHub(legacy=True)
+    )
+    result = catalog.get_catalog("omero-analysis")
+    assert result.workflows[0].source.format == "legacy-agent-skills"
+    assert result.workflows[0].skills[0].name == "analyze-example-measurements"
+
+
+def test_invalid_manifest_does_not_fall_back(config_file, tmp_path):
+    catalog = WorkflowSkillCatalog(
+        config_path=config_file,
+        cache_dir=tmp_path / "cache",
+        github=FakeGitHub(invalid_manifest=True),
+    )
+    result = catalog.get_catalog("omero-analysis")
+    assert result.workflows[0].status == "error"
+    assert "plugin.json" in result.workflows[0].error
 
 
 def test_package_requires_catalog_or_explicit_consumer(config_file, tmp_path):
