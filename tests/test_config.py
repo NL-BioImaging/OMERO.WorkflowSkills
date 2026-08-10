@@ -15,6 +15,7 @@ same_repo = https://github.com/example/legacy/tree/v1
 same_repo = https://github.com/example/current/tree/v2
 new_repo = https://github.com/example/new/tree/v3
 new_skills_path = ai/skills
+new_plugin_path = agent-package
 
 [UI]
 plate_workflows = ["same"]
@@ -28,6 +29,8 @@ zarr_workflows = ["same", "new"]
     assert by_key["same"].repository_url.endswith("/current/tree/v2")
     assert by_key["same"].ui_modes == ("plate", "zarr")
     assert by_key["new"].skills_path == "ai/skills"
+    assert by_key["new"].plugin_path == "agent-package"
+    assert by_key["old"].plugin_path == "."
     assert by_key["old"].ui_modes == ("standard",)
 
 
